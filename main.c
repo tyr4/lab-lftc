@@ -6,7 +6,7 @@
 
 #define FILE_PATH "../files/test/1.q"
 
-int main(void) {
+int main() {
     char *buf = loadFile(FILE_PATH);
 
     tokenize(buf);

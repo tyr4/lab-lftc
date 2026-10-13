@@ -3,9 +3,7 @@
 #include <string.h>
 
 #include "lexer.h"
-
 #include <stdlib.h>
-
 #include "utils.h"
 
 Token tokens[MAX_TOKENS];
@@ -77,8 +75,8 @@ void tokenize(const char *pch) {
 
             case '/':
                 if (pch[1] == '/') {
-                    addTk(COMMENT);
-                    while (*pch != '\n') pch++;
+                    // addTk(COMMENT);
+                    while (*pch != '\n' && *pch != '\0') pch++;
                 }
                 else {
                     addTk(DIV);
@@ -153,12 +151,18 @@ void tokenize(const char *pch) {
                     addTk(AND);
                     pch += 2;
                 }
+                else {
+                    err("second & missing");
+                }
                 break;
 
             case '|':
                 if (pch[1] == '|') {
                     addTk(OR);
                     pch += 2;
+                }
+                else {
+                    err("second | missing");
                 }
                 break;
 
@@ -214,19 +218,38 @@ void tokenize(const char *pch) {
                 else if (isdigit(*pch) || *pch == '.') {
                     for (start = pch++; isdigit(*pch) || *pch == '.'; pch++) {}
                     char *text = copyn(buf, start, pch);
+                    char *endptr;
 
                     if (strchr(text, '.')) {
+                        if (!strchr("0123456789", text[strlen(text) - 1])) {
+                            err("failed to convert to float: %s", text);
+                        }
                         tk = addTk(REAL);
-                        tk->r = atof(text);
+                        tk->r = strtod(text, &endptr);
                     }
                     else {
                         tk = addTk(INT);
-                        tk->i = atoi(text);
+                        tk->i = (int)strtol(text, &endptr, 10);
+                        //
+                        // if (*endptr != '\0') {
+                        //     err("failed to convert to int: %s", endptr);
+                        // }
                     }
                 }
 
                 else if (*pch == '"') {
-                    for (start = ++pch; *pch != '"'; pch++) {}
+                    for (start = ++pch; *pch != '"'; pch++) {
+                        if (*pch == '\n' || *pch == '\0') {
+                            err("missing end \": line %d", line);
+                        }
+                    }
+
+                    // if (*pch != '"') {
+                    //     pch++;
+                    //     char *text = copyn(buf, start, pch - 1);
+                    //     err("missing end \": %s", text);
+                    // }
+
                     pch++; // get rid of the trailing "
                     char *text = copyn(buf, start, pch - 1);
 
