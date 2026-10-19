@@ -221,7 +221,7 @@ void tokenize(const char *pch) {
                     char *endptr;
 
                     if (strchr(text, '.')) {
-                        if (!strchr("0123456789", text[strlen(text) - 1])) {
+                        if (!isdigit(text[strlen(text) - 1])) {
                             err("failed to convert to float: %s", text);
                         }
                         tk = addTk(REAL);
@@ -239,7 +239,7 @@ void tokenize(const char *pch) {
 
                 else if (*pch == '"') {
                     for (start = ++pch; *pch != '"'; pch++) {
-                        if (*pch == '\n' || *pch == '\0') {
+                        if (*pch == '\0') {
                             err("missing end \": line %d", line);
                         }
                     }

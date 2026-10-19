@@ -15,5 +15,5 @@ while(i<10 || i>5)
     i=i+1;
     end
 
-puts("PI=\n");
+puts("PI=);
 putr(3.1);
