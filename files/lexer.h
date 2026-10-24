@@ -56,4 +56,5 @@ void tokenize(const char *pch);
 void showTokens();
 
 const char *token_name(TokenType t);
+const char *showTokenName(TokenType t);
 void showNiceOutput();

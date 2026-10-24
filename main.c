@@ -3,6 +3,7 @@
 
 #include "files/lexer.h"
 #include "files/utils.h"
+#include "files/parser.h"
 
 #define FILE_PATH "../files/test/1.q"
 
@@ -12,6 +13,8 @@ int main() {
     tokenize(buf);
 
     showNiceOutput();
+
+    parse();
 
     free(buf);
     return 0;

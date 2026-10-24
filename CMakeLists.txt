@@ -3,4 +3,11 @@ project(LFTC C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(LFTC files/lexer.c files/utils.c main.c)
+add_executable(
+        LFTC
+        files/lexer.c
+        files/utils.c
+        files/parser.c
+        files/parser.h
+        main.c
+)
