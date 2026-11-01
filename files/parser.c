@@ -1,8 +1,8 @@
-#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "lexer.h"
 
@@ -56,11 +56,11 @@ bool factor() {
         if (expr()) {
             if (consume(RPAR)) {
                 return true;
-            }
-        }
+            } else tkerr("missing ) after expression");
+        } else tkerr("invalid expression format");
     }
 
-    else if (consume(ID)) {
+    if (consume(ID)) {
         int save = iTk;
 
         if (consume(LPAR)) {
@@ -158,7 +158,7 @@ bool exprComp() {
     int start = iTk;
 
     if (exprAdd()) {
-        if (consume(LESS) || consume(EQUAL)) {
+        if (consume(LESS) || consume(EQUAL) || consume(GREATER) || consume(GREATEREQ)) {
             if (exprAdd()) {}
         }
 
@@ -238,25 +238,25 @@ bool instr() {
 
                         if (consume(ELSE)) {
                             if (block()) {}
-                            else iTk = save;
+                            else tkerr("invalid block format");
                         }
                         else iTk = save;
 
                         if (consume(END)) {
                             return true;
-                        }
-                    }
-                }
-            }
-        }
+                        } else tkerr("missing 'end' keyword");
+                    } else tkerr("invalid block format");
+                } else tkerr("missing ) after '%s'", strcmp(consumed->text, "")? consumed->text : consumedName(consumed));
+            } else tkerr("invalid expression format");
+        } else tkerr("missing ( after 'if'");
     }
 
     if (consume(RETURN)) {
         if (expr()) {
             if (consume(SEMICOLON)) {
                 return true;
-            }
-        }
+            } else tkerr("missing ;");
+        } else tkerr("invalid expression format");
     }
 
     if (consume(WHILE)) {
@@ -266,11 +266,11 @@ bool instr() {
                     if (block()) {
                         if (consume(END)) {
                             return true;
-                        }
-                    }
-                }
-            }
-        }
+                        } else tkerr("missing 'end' keyword");
+                    } else tkerr("invalid block format");
+                } else tkerr("missing ) after expression");
+            } else tkerr("invalid expression format");
+        } else tkerr("missing ( after 'while'");
     }
 
     iTk = start;
@@ -317,10 +317,10 @@ bool defVar() {
                 if (baseType()) {
                     if (consume(SEMICOLON)) {
                         return true;
-                    }
-                }
-            }
-        }
+                    } else tkerr("missing ;");
+                } else tkerr("incorrect base type: %s", tokens[iTk].text);
+            } else tkerr("missing : after '%s'", tokens[iTk].text);
+        } else tkerr("missing identificator");
     }
 
     iTk = start;
@@ -334,8 +334,8 @@ bool funcParam() {
         if (consume(COLON)) {
             if (baseType()) {
                 return true;
-            }
-        }
+            } else tkerr("incorrect base type: %s", tokens[iTk].text);
+        } else tkerr("missing : after '%s'", consumed->text);
     }
 
     iTk = start;
@@ -384,13 +384,13 @@ bool defFunc() {
                             if (block()) {
                                 if (consume(END)) {
                                     return true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+                                } else tkerr("missing 'end' keyword");
+                            } else tkerr("incorrect function body");
+                        } else tkerr("incorrect base type");
+                    } else tkerr("missing :");
+                } else tkerr("missing )");
+            } else tkerr("missing (");
+        } else tkerr("missing ID");
     }
 
     iTk = start;

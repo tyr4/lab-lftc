@@ -57,4 +57,5 @@ void showTokens();
 
 const char *token_name(TokenType t);
 const char *showTokenName(TokenType t);
+const char *consumedName(Token *t);
 void showNiceOutput();

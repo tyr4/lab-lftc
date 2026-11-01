@@ -142,6 +142,10 @@ void tokenize(const char *pch) {
                 break;
 
             case '<':
+                if (pch[1] == '=') {
+                    err("invalid token: <=");
+                }
+
                 addTk(LESS);
                 pch++;
                 break;
@@ -279,6 +283,10 @@ const char *showTokenName(TokenType t) {
 #undef X
     }
     return "UNKNOWN";
+}
+
+const char *consumedName(Token *t) {
+    return showTokenName(t->code);
 }
 
 void showNiceOutput() {
