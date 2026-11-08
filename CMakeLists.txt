@@ -9,5 +9,7 @@ add_executable(
         files/utils.c
         files/parser.c
         files/parser.h
+        files/ad.c
+        files/ad.h
         main.c
 )

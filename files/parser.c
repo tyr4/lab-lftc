@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "ad.h"
 #include "lexer.h"
 
 int iTk; // the iterator in tokens
@@ -22,13 +23,15 @@ _Noreturn void tkerr(const char *fmt, ...) {
     va_end(va);
 
     fprintf(stderr, "\n");
+
+    delDomain();
     exit(EXIT_FAILURE);
 }
 
 bool consume(int code) {
     // printf("about to consume %s\n", showTokenName(tokens[iTk].code));
     if (tokens[iTk].code == code) {
-        printf("CONSUMED %s %d\n", showTokenName(tokens[iTk].code), tokens[iTk].line);
+        // printf("CONSUMED %s %d\n", showTokenName(tokens[iTk].code), tokens[iTk].line);
 
         consumed = &tokens[iTk++];
 
@@ -61,29 +64,21 @@ bool factor() {
     }
 
     if (consume(ID)) {
-        int save = iTk;
-
         if (consume(LPAR)) {
             if (expr()) {
                 for (;;) {
-                    int save2 = iTk;
-
                     if (consume(COMMA)) {
                         if (expr()) {
                             continue;
-                        }
+                        } else tkerr("missing expression after ,");
                     }
-
-                    iTk = save2;
                     break;
                 }
             }
-            else iTk = save;
 
             if (consume(RPAR)) {}
-            else iTk = save;
+            else tkerr("missing ) after expression");
         }
-        else iTk = save;
 
         return true;
     }
@@ -111,16 +106,19 @@ bool exprMul() {
 
     if (exprPrefix()) {
         for (;;) {
-            int save = iTk;
-
-            if (consume(MUL) || consume(DIV)) {
+            if (consume(MUL)) {
                 if (exprPrefix()) {
                     continue;
-                }
+                } else tkerr("invalid expression after multiplication");
             }
 
-            iTk = save;
-            break;
+            else if (consume(DIV)) {
+                if (exprPrefix()) {
+                    continue;
+                } else tkerr("invalid expression after division");
+            }
+
+            else break;
         }
 
         return true;
@@ -135,16 +133,17 @@ bool exprAdd() {
 
     if (exprMul()) {
         for (;;) {
-            int save = iTk;
-
-            if (consume(ADD) || consume(SUB)) {
-                if (exprMul()) {
-                    continue;
-                }
+            if (consume(ADD)) {
+                if (exprMul()) { }
+                else tkerr("invalid expression after addition");
             }
 
-            iTk = save;
-            break;
+            else if (consume(SUB)) {
+                if (exprMul()) { }
+                else tkerr("invalid expression after subtraction");
+            }
+
+            else break;
         }
 
         return true;
@@ -158,8 +157,24 @@ bool exprComp() {
     int start = iTk;
 
     if (exprAdd()) {
-        if (consume(LESS) || consume(EQUAL) || consume(GREATER) || consume(GREATEREQ)) {
+        if (consume(LESS)) {
             if (exprAdd()) {}
+            else tkerr("invalid expression after <");
+        }
+
+        if (consume(EQUAL)) {
+            if (exprAdd()) {}
+            else tkerr("invalid expression after ==");
+        }
+
+        if (consume(GREATER)) {
+            if (exprAdd()) {}
+            else tkerr("invalid expression after >");
+        }
+
+        if (consume(GREATEREQ)) {
+            if (exprAdd()) {}
+            else tkerr("invalid expression after >=");
         }
 
         return true;
@@ -173,17 +188,15 @@ bool exprAssign() {
     int start = iTk;
 
     if (consume(ID)) {
-        if (consume(ASSIGN)) {}
-        else iTk = start;
-    }
-    else iTk = start;
+        if (consume(ASSIGN)) {
+            if (exprComp()) return true;
+            else tkerr("invalid expression after =");
+        }
 
-    if (exprComp()) {
-        return true;
+        iTk = start;
     }
 
-    iTk = start;
-    return false;
+    return exprComp();
 }
 
 bool exprLogic() {
@@ -193,10 +206,15 @@ bool exprLogic() {
         for (;;) {
             int save = iTk;
 
-            if (consume(AND) || consume(OR)) {
+            if (consume(AND)) {
                 if (exprAssign()) {
                     continue;
-                }
+                } else tkerr("invalid expression after &&");
+            }
+            else if (consume(OR)) {
+                if (exprAssign()) {
+                    continue;
+                } else tkerr("invalid expression after ||");
             }
 
             iTk = save;
@@ -234,20 +252,18 @@ bool instr() {
             if (expr()) {
                 if (consume(RPAR)) {
                     if (block()) {
-                        int save = iTk;
 
                         if (consume(ELSE)) {
                             if (block()) {}
-                            else tkerr("invalid block format");
+                            else tkerr("invalid block format inside 'else'");
                         }
-                        else iTk = save;
 
                         if (consume(END)) {
                             return true;
-                        } else tkerr("missing 'end' keyword");
-                    } else tkerr("invalid block format");
-                } else tkerr("missing ) after '%s'", strcmp(consumed->text, "")? consumed->text : consumedName(consumed));
-            } else tkerr("invalid expression format");
+                        } else tkerr("missing 'end' keyword after if/else statement");
+                    } else tkerr("invalid block format inside 'if'");
+                } else tkerr("missing ) after '%s' inside expression", strcmp(consumed->text, "")? consumed->text : consumedName(consumed));
+            } else tkerr("invalid expression format inside 'if'");
         } else tkerr("missing ( after 'if'");
     }
 
@@ -255,8 +271,8 @@ bool instr() {
         if (expr()) {
             if (consume(SEMICOLON)) {
                 return true;
-            } else tkerr("missing ;");
-        } else tkerr("invalid expression format");
+            } else tkerr("missing ; after expression inside 'return' statement");
+        } else tkerr("invalid expression format after 'return' statement");
     }
 
     if (consume(WHILE)) {
@@ -266,11 +282,11 @@ bool instr() {
                     if (block()) {
                         if (consume(END)) {
                             return true;
-                        } else tkerr("missing 'end' keyword");
-                    } else tkerr("invalid block format");
-                } else tkerr("missing ) after expression");
-            } else tkerr("invalid expression format");
-        } else tkerr("missing ( after 'while'");
+                        } else tkerr("missing 'end' keyword after 'while' statement");
+                    } else tkerr("invalid block format inside 'while' statement");
+                } else tkerr("missing ) after expression inside 'while' statement");
+            } else tkerr("invalid expression format inside 'while' statement");
+        } else tkerr("missing ( after 'while' statement");
     }
 
     iTk = start;
@@ -295,12 +311,18 @@ bool block() {
 
 bool baseType() {
     if (consume(TYPE_INT)) {
+        ret.type = TYPE_INT;
+
         return true;
     }
     if (consume(TYPE_REAL)) {
+        ret.type = TYPE_REAL;
+
         return true;
     }
     if (consume(TYPE_STR)) {
+        ret.type = TYPE_STR;
+
         return true;
     }
 
@@ -313,8 +335,18 @@ bool defVar() {
 
     if (consume(VAR)) {
         if (consume(ID)) {
+
+            const char *name = consumed->text;
+            Symbol *s = searchInCurrentDomain(name);
+            if (s) tkerr("symbol redefinition: %s", name);
+
+            s = addSymbol(name, KIND_VAR);
+            s->local = crtFn != NULL;
+
             if (consume(COLON)) {
                 if (baseType()) {
+                    s->type = ret.type;
+
                     if (consume(SEMICOLON)) {
                         return true;
                     } else tkerr("missing ;");
@@ -331,8 +363,18 @@ bool funcParam() {
     int start = iTk;
 
     if (consume(ID)) {
+        const char *name = consumed->text;
+        Symbol *s = searchInCurrentDomain(name);
+        if (s) tkerr("symbol redefinition: %s", name);
+
+        s = addSymbol(name,KIND_ARG);
+        Symbol *sFnParam=addFnArg(crtFn,name);
+
         if (consume(COLON)) {
             if (baseType()) {
+                s->type = ret.type;
+                sFnParam->type = ret.type;
+
                 return true;
             } else tkerr("incorrect base type: %s", tokens[iTk].text);
         } else tkerr("missing : after '%s'", consumed->text);
@@ -371,26 +413,40 @@ bool defFunc() {
 
     if (consume(FUNCTION)) {
         if (consume(ID)) {
+
+            const char *name = consumed->text;
+            Symbol *s = searchInCurrentDomain(name);
+            if (s) tkerr("symbol redefinition: %s", name);
+
+            crtFn = addSymbol(name, KIND_FN);
+            crtFn->args = NULL;
+            addDomain();
+
             if (consume(LPAR)) {
                 if (funcParams()) {}
 
                 if (consume(RPAR)) {
                     if (consume(COLON)) {
                         if (baseType()) {
+                            crtFn->type = ret.type;
+
                             for (;;) {
                                 if (defVar()) {}
                                 else break;
                             }
                             if (block()) {
                                 if (consume(END)) {
+                                    delDomain();
+                                    crtFn = NULL;
+
                                     return true;
-                                } else tkerr("missing 'end' keyword");
+                                } else tkerr("missing 'end' keyword inside function block");
                             } else tkerr("incorrect function body");
-                        } else tkerr("incorrect base type");
-                    } else tkerr("missing :");
-                } else tkerr("missing )");
-            } else tkerr("missing (");
-        } else tkerr("missing ID");
+                        } else tkerr("incorrect function return type");
+                    } else tkerr("missing : after ) inside function definition");
+                } else tkerr("missing ) after function definition");
+            } else tkerr("missing ( after function name");
+        } else tkerr("missing name after function definition");
     }
 
     iTk = start;
@@ -399,6 +455,8 @@ bool defFunc() {
 
 // program ::= ( defVar | defFunc | block )* FINISH
 bool program() {
+    addDomain();
+
     for (;;) {
         if (defVar()) {}
         else if (defFunc()) {}
@@ -408,6 +466,9 @@ bool program() {
     }
 
     if (consume(FINISH)) {
+        delDomain();
+
+        printf("\nsintaxa ok!\n");
         return true;
     }
 

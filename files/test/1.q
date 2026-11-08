@@ -3,10 +3,10 @@
 function max(x:int, y:int):int
     if(x<y)
         return y;
-        else
+    else
         return x;
-        end
     end
+end
 
 var i:int;
 i=0;    // iterator
@@ -16,4 +16,4 @@ while(i<10)
     end
 
 puts("PI=");
-putr(3.1);
+putr(3.14);
